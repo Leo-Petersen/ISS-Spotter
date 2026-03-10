@@ -1,0 +1,11 @@
+[Unit]
+Description=Fetch ISS Position Data
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=exouser
+Group=exouser
+ExecStart=/opt/iss-spotter/venv/bin/python /opt/iss-spotter/repo/app/fetch_iss.py
+Environment="PATH=/opt/iss-spotter/venv/bin:/usr/bin"

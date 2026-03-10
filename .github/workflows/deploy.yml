@@ -1,0 +1,45 @@
+name: Deploy ISS Spotter
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Jetstream2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e
+
+            cd /opt/iss-spotter/repo
+
+            # Pull latest code
+            git pull origin main
+
+            # Install/update dependencies
+            /opt/iss-spotter/venv/bin/pip install -r requirements.txt
+
+            # Copy systemd unit files in case they changed
+            sudo cp iss-spotter.service /etc/systemd/system/
+            sudo cp iss-fetcher.service /etc/systemd/system/
+            sudo cp iss-fetcher.timer   /etc/systemd/system/
+            sudo systemctl daemon-reload
+
+            # Copy Caddyfile in case it changed
+            sudo cp Caddyfile /etc/caddy/Caddyfile
+            sudo systemctl reload caddy
+
+            # Restart the Flask app (timer stays running)
+            sudo systemctl restart iss-spotter.service
+
+            echo "Deploy complete!"
