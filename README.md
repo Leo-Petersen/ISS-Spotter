@@ -2,6 +2,9 @@
 
 **Track:** C – The Observer (Automated Data Pipeline)
 
+## Finalized Project
+https://iss-spotter.149.165.170.56.nip.io/
+
 ## Overview
 I'm building a live dashboard that tracks the current location of the International Space Station (ISS). The app will have two parts: a background script that fetches position data every few minutes, and a simple web page that displays the latest coordinates and timestamp. (potentially on a globe/map?)
 
