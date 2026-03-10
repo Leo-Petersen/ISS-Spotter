@@ -4,189 +4,201 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ISS Spotter</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: #0a0e17;
-            color: #e0e0e0;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0b0f1a;
+            color: #ddd;
             min-height: 100vh;
+            overflow: hidden;
         }
 
         header {
-            background: linear-gradient(135deg, #0d1b2a 0%, #1b2838 100%);
-            padding: 1.2rem 2rem;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 1rem 2rem;
+            background: rgba(11, 15, 26, 0.9);
+            border-bottom: 1px solid #1a2340;
             display: flex;
-            align-items: center;
             justify-content: space-between;
-            border-bottom: 1px solid #1e3a5f;
+            align-items: center;
         }
 
         header h1 {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: #64b5f6;
+            font-size: 1.3rem;
+            color: #fff;
         }
 
-        header h1 span {
-            color: #90caf9;
-            font-weight: 300;
-        }
-
-        .status-badge {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.85rem;
-            color: #81c784;
-        }
-
-        .status-dot {
+        .live-dot {
+            display: inline-block;
             width: 8px;
             height: 8px;
             background: #4caf50;
             border-radius: 50%;
-            animation: pulse 2s infinite;
+            margin-right: 6px;
+            animation: blink 2s infinite;
         }
 
-        @keyframes pulse {
+        @keyframes blink {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
+            50% { opacity: 0.3; }
         }
 
-        #map {
-            width: 100%;
-            height: 55vh;
-            min-height: 350px;
+        #globe-container {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
         }
 
-        .info-bar {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            padding: 1.5rem 2rem;
-            background: #0d1b2a;
-        }
-
-        .info-card {
-            background: #1b2838;
+        .info-panel {
+            position: fixed;
+            bottom: 1.5rem;
+            left: 1.5rem;
+            z-index: 100;
+            background: rgba(15, 20, 35, 0.85);
+            border: 1px solid #1a2340;
             border-radius: 8px;
-            padding: 1rem 1.25rem;
-            border: 1px solid #1e3a5f;
+            padding: 1.2rem 1.5rem;
+            min-width: 200px;
         }
 
-        .info-card .label {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #78909c;
-            margin-bottom: 0.3rem;
+        .info-panel h3 {
+            font-size: 0.85rem;
+            color: #7aa2d4;
+            margin-bottom: 0.8rem;
         }
 
-        .info-card .value {
-            font-size: 1.35rem;
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.3rem 0;
+            font-size: 0.85rem;
+        }
+
+        .info-row span:first-child {
+            color: #888;
+        }
+
+        .info-row span:last-child {
+            color: #fff;
             font-weight: 600;
-            color: #e3f2fd;
-            font-variant-numeric: tabular-nums;
         }
 
         footer {
-            text-align: center;
-            padding: 1rem;
-            font-size: 0.75rem;
-            color: #546e7a;
+            position: fixed;
+            bottom: 0.5rem;
+            right: 1.5rem;
+            z-index: 100;
+            font-size: 0.7rem;
+            color: #444;
         }
 
-        footer a { color: #64b5f7; text-decoration: none; }
+        footer a { color: #5a8ab5; text-decoration: none; }
     </style>
 </head>
 <body>
+
     <header>
-        <h1>ISS <span>Spotter</span></h1>
-        <div class="status-badge">
-            <div class="status-dot"></div>
-            <span>Live Tracking</span>
-        </div>
+        <h1>ISS Spotter</h1>
+        <span style="font-size: 0.85rem; color: #aaa;">
+            <span class="live-dot"></span> Live
+        </span>
     </header>
 
-    <div id="map"></div>
+    <div id="globe-container"></div>
 
-    <div class="info-bar">
-        <div class="info-card">
-            <div class="label">Latitude</div>
-            <div class="value" id="lat">—</div>
+    <div class="info-panel">
+        <h3>Current Position</h3>
+        <div class="info-row">
+            <span>Latitude</span>
+            <span id="lat">&mdash;</span>
         </div>
-        <div class="info-card">
-            <div class="label">Longitude</div>
-            <div class="value" id="lng">—</div>
+        <div class="info-row">
+            <span>Longitude</span>
+            <span id="lng">&mdash;</span>
         </div>
-        <div class="info-card">
-            <div class="label">Last Updated</div>
-            <div class="value" id="updated">—</div>
+        <div class="info-row">
+            <span>Updated</span>
+            <span id="updated">&mdash;</span>
         </div>
-        <div class="info-card">
-            <div class="label">Refresh</div>
-            <div class="value" id="countdown">—</div>
+        <div class="info-row">
+            <span>Next refresh</span>
+            <span id="countdown">&mdash;</span>
+        </div>
+        <div class="info-row">
+            <span>Data points</span>
+            <span id="datapoints">0</span>
         </div>
     </div>
 
     <footer>
         Data from <a href="http://open-notify.org/" target="_blank">Open Notify API</a>
-        &middot; Updates every 5 minutes
     </footer>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/globe.gl@2.33.0/dist/globe.gl.min.js"></script>
     <script>
-        // Map Setup
-        const map = L.map('map', {
-            center: [0, 0],
-            zoom: 2,
-            zoomControl: true,
-            worldCopyJump: true
+        const globe = Globe()
+            .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+            .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
+            .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
+            .showAtmosphere(true)
+            .atmosphereColor('#3a7bd5')
+            .atmosphereAltitude(0.2)
+            .pointOfView({ lat: 20, lng: 0, altitude: 2.5 })
+            .pointsData([])
+            .pointLat('lat')
+            .pointLng('lng')
+            .pointColor(() => '#ff3333')
+            .pointAltitude(0.05)
+            .pointRadius(0.5)
+            .pathsData([])
+            .pathPointLat(p => p[0])
+            .pathPointLng(p => p[1])
+            .pathColor(() => ['rgba(100, 180, 255, 0.6)', 'rgba(100, 180, 255, 0.05)'])
+            .pathStroke(1.5)
+            .pathDashLength(0.05)
+            .pathDashGap(0.01)
+            .pathDashAnimateTime(100000)
+            .ringsData([])
+            .ringLat('lat')
+            .ringLng('lng')
+            .ringColor(() => t => `rgba(255, 50, 50, ${1 - t})`)
+            .ringMaxRadius(2.5)
+            .ringPropagationSpeed(2)
+            .ringRepeatPeriod(1500)
+            (document.getElementById('globe-container'));
+
+        globe.width(window.innerWidth);
+        globe.height(window.innerHeight);
+        window.addEventListener('resize', () => {
+            globe.width(window.innerWidth);
+            globe.height(window.innerHeight);
         });
 
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap &copy; CARTO',
-            maxZoom: 18
-        }).addTo(map);
+        globe.controls().autoRotate = true;
+        globe.controls().autoRotateSpeed = 0.3;
 
-        // Custom ISS icon
-        const issIcon = L.divIcon({
-            html: `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#64b5f6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3" fill="#64b5f6" fill-opacity="0.3"/>
-                <line x1="3" y1="12" x2="8" y2="12"/>
-                <line x1="16" y1="12" x2="21" y2="12"/>
-                <line x1="12" y1="3" x2="12" y2="8"/>
-                <line x1="12" y1="16" x2="12" y2="21"/>
-            </svg>`,
-            className: '',
-            iconSize: [36, 36],
-            iconAnchor: [18, 18]
-        });
-
-        let issMarker = L.marker([0, 0], { icon: issIcon }).addTo(map);
-        let trailLine = L.polyline([], { color: '#64b5f6', weight: 2, opacity: 0.5 }).addTo(map);
-
-        // Data Loading
         async function loadPosition() {
             try {
                 const res = await fetch('/api/position');
                 if (!res.ok) return;
                 const data = await res.json();
 
-                const lat = parseFloat(data.latitude).toFixed(4);
-                const lng = parseFloat(data.longitude).toFixed(4);
+                const lat = parseFloat(data.latitude);
+                const lng = parseFloat(data.longitude);
 
-                document.getElementById('lat').textContent = lat + '°';
-                document.getElementById('lng').textContent = lng + '°';
+                document.getElementById('lat').textContent = lat.toFixed(4) + '°';
+                document.getElementById('lng').textContent = lng.toFixed(4) + '°';
+                document.getElementById('updated').textContent = new Date(data.timestamp).toLocaleTimeString();
 
-                const dt = new Date(data.timestamp);
-                document.getElementById('updated').textContent = dt.toLocaleTimeString();
-
-                issMarker.setLatLng([data.latitude, data.longitude]);
-                map.panTo([data.latitude, data.longitude], { animate: true, duration: 1 });
+                globe.pointsData([{ lat, lng }]);
+                globe.ringsData([{ lat, lng }]);
+                globe.pointOfView({ lat, lng, altitude: 2.5 }, 2000);
             } catch (e) {
                 console.error('Failed to load position:', e);
             }
@@ -197,19 +209,21 @@
                 const res = await fetch('/api/history');
                 if (!res.ok) return;
                 const history = await res.json();
-                const coords = history.map(p => [p.latitude, p.longitude]);
-                trailLine.setLatLngs(coords);
+                document.getElementById('datapoints').textContent = history.length;
+                if (history.length > 1) {
+                    const coords = history.map(p => [p.latitude, p.longitude]);
+                    globe.pathsData([{ coords }]);
+                }
             } catch (e) {
                 console.error('Failed to load history:', e);
             }
         }
 
-        // Countdown Timer
         let secondsLeft = 300;
-        function tick() {
+        setInterval(() => {
             const min = Math.floor(secondsLeft / 60);
             const sec = String(secondsLeft % 60).padStart(2, '0');
-            document.getElementById('countdown').textContent = `${min}:${sec}`;
+            document.getElementById('countdown').textContent = min + ':' + sec;
             if (secondsLeft <= 0) {
                 secondsLeft = 300;
                 loadPosition();
@@ -217,12 +231,10 @@
             } else {
                 secondsLeft--;
             }
-        }
+        }, 1000);
 
-        // Init
         loadPosition();
         loadHistory();
-        setInterval(tick, 1000);
     </script>
 </body>
 </html>
