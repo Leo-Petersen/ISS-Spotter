@@ -45,7 +45,7 @@ def save_position(position):
                 history = []
 
     history.append(position)
-    history = history[-60:]  # keep last 60 data points (too much? too little? keep observing)
+    history = history[-90:]  # keep last 90 data points (The ISS takes roughly 90 minutes to orbit around the earth, ~16 times per 24 hours)
 
     with open(history_file, "w") as f:
         json.dump(history, f, indent=2)
