@@ -13,7 +13,7 @@ DATA_DIR = "/opt/iss-spotter/data"
 DATA_FILE = os.path.join(DATA_DIR, "iss_position.json")
 
 def fetch_iss_position():
-    """Call the Open Notify API and return position dict."""
+    """Call the Open Notify API and return position dictionary"""
     url = "http://api.open-notify.org/iss-now.json"
     response = requests.get(url, timeout=10)
     response.raise_for_status()

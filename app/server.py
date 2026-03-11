@@ -26,7 +26,7 @@ def index():
 
 @app.route("/api/position")
 def api_position():
-    """JSON endpoint — returns the latest ISS position."""
+    """JSON endpoint, returns the latest ISS position."""
     position = read_json("iss_position.json")
     if position is None:
         return jsonify({"error": "No data yet"}), 404
@@ -34,7 +34,7 @@ def api_position():
 
 @app.route("/api/history")
 def api_history():
-    """JSON endpoint — returns position history for the trail."""
+    """JSON endpoint, returns position history for the trail."""
     history = read_json("iss_history.json")
     if history is None:
         return jsonify([])
