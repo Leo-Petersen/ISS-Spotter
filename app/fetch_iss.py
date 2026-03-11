@@ -45,7 +45,7 @@ def save_position(position):
                 history = []
 
     history.append(position)
-    history = history[-250:]  # keep last 250 data points (too much? too little? keep observing)
+    history = history[-60:]  # keep last 60 data points (too much? too little? keep observing)
 
     with open(history_file, "w") as f:
         json.dump(history, f, indent=2)
