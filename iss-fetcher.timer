@@ -1,9 +1,9 @@
 [Unit]
-Description=Fetch ISS Position Every 5 Minutes
+Description=Fetch ISS Position Every 1 Minute
 
 [Timer]
 OnBootSec=30
-OnUnitActiveSec=5min
+OnUnitActiveSec=1min
 AccuracySec=30
 Persistent=true
 
