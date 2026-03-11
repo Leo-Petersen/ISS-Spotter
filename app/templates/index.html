@@ -237,7 +237,7 @@
         }
     </script>
 
-    <!-- volumetric ring fragment, edge glow similar to volumetric fog -->
+    <!-- volumetric ring fragment - edge glow similar to volumetric fog -->
     <script id="ring-frag" type="x-shader/x-fragment">
         uniform vec3 uSunDirection;
         uniform vec3 uCameraPos;
@@ -401,7 +401,7 @@
         var globeObj = scene.children[0]; // the globe group
         var globeRadius = 100;
 
-        // sun direction, normalized light vector
+        // sun direction - normalized light vector
         var sunDirection = new THREE.Vector3(1.0, 0.3, 0.5).normalize();
 
         // rayleigh scattering atmosphere shell
@@ -463,7 +463,7 @@
         var cloudMesh = new THREE.Mesh(cloudGeo, cloudMat);
         scene.add(cloudMesh);
 
-        // animation loop, update uniforms each frame
+        // animation loop - update uniforms each frame
         var clock = new THREE.Clock();
 
         function animate() {
