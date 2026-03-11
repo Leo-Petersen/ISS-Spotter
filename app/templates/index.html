@@ -9,7 +9,7 @@
 
         body {
             font-family: 'Segoe UI', system-ui, sans-serif;
-            background: #000;
+            background: #0b0f1a;
             color: #ddd;
             min-height: 100vh;
             overflow: hidden;
@@ -22,7 +22,7 @@
             right: 0;
             z-index: 100;
             padding: 1rem 2rem;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(11, 15, 26, 0.9);
             border-bottom: 1px solid #1a2340;
             display: flex;
             justify-content: space-between;
@@ -60,7 +60,7 @@
             bottom: 1.5rem;
             left: 1.5rem;
             z-index: 100;
-            background: rgba(5, 10, 25, 0.85);
+            background: rgba(15, 20, 35, 0.85);
             border: 1px solid #1a2340;
             border-radius: 8px;
             padding: 1.2rem 1.5rem;
@@ -99,30 +99,6 @@
         }
 
         footer a { color: #5a8ab5; text-decoration: none; }
-
-        .iss-label {
-            color: #ff4444;
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            font-size: 11px;
-            font-weight: 600;
-            background: rgba(0, 0, 0, 0.6);
-            padding: 2px 8px;
-            border-radius: 4px;
-            border: 1px solid rgba(255, 68, 68, 0.4);
-            white-space: nowrap;
-            pointer-events: none;
-        }
-
-        .iss-label .dot {
-            display: inline-block;
-            width: 6px;
-            height: 6px;
-            background: #ff4444;
-            border-radius: 50%;
-            margin-right: 5px;
-            box-shadow: 0 0 6px #ff4444;
-            animation: blink 1.5s infinite;
-        }
     </style>
 </head>
 <body>
@@ -140,19 +116,19 @@
         <h3>Current Position</h3>
         <div class="info-row">
             <span>Latitude</span>
-            <span id="lat">--</span>
+            <span id="lat">&mdash;</span>
         </div>
         <div class="info-row">
             <span>Longitude</span>
-            <span id="lng">--</span>
+            <span id="lng">&mdash;</span>
         </div>
         <div class="info-row">
             <span>Updated</span>
-            <span id="updated">--</span>
+            <span id="updated">&mdash;</span>
         </div>
         <div class="info-row">
             <span>Next refresh</span>
-            <span id="countdown">--</span>
+            <span id="countdown">&mdash;</span>
         </div>
         <div class="info-row">
             <span>Data points</span>
@@ -164,381 +140,90 @@
         Data from <a href="http://open-notify.org/" target="_blank">Open Notify API</a>
     </footer>
 
-    <!-- shaders -->
-
-    <!-- rayleigh atmosphere vertex -->
-    <script id="atmos-vert" type="x-shader/x-vertex">
-        varying vec3 vWorldPosition;
-        varying vec3 vWorldNormal;
-
-        void main() {
-            vec4 worldPos = modelMatrix * vec4(position, 1.0);
-            vWorldPosition = worldPos.xyz;
-            vWorldNormal = normalize(mat3(modelMatrix) * normal);
-            gl_Position = projectionMatrix * viewMatrix * worldPos;
-        }
-    </script>
-
-    <!-- rayleigh atmosphere fragment -->
-    <script id="atmos-frag" type="x-shader/x-fragment">
-        uniform vec3 uSunDirection;
-        uniform vec3 uCameraPos;
-
-        varying vec3 vWorldPosition;
-        varying vec3 vWorldNormal;
-
-        // rayleigh scattering coefficients for rgb
-        const vec3 rayleighCoeff = vec3(5.5e-6, 13.0e-6, 22.4e-6);
-        const float PI = 3.14159265;
-
-        void main() {
-            vec3 viewDir = normalize(vWorldPosition - uCameraPos);
-            vec3 normal = normalize(vWorldNormal);
-
-            // fresnel - stronger glow at edges
-            float fresnel = 1.0 - abs(dot(viewDir, normal));
-            fresnel = pow(fresnel, 3.0);
-
-            // rayleigh phase function
-            float cosTheta = dot(viewDir, uSunDirection);
-            float phase = (3.0 / (16.0 * PI)) * (1.0 + cosTheta * cosTheta);
-
-            // sun-side illumination
-            float sunDot = dot(normal, uSunDirection);
-            float sunFactor = smoothstep(-0.3, 0.6, sunDot);
-
-            // combine scattering with sun lighting
-            vec3 scatter = rayleighCoeff / max(rayleighCoeff.b, 0.0001);
-            scatter = normalize(scatter);
-            vec3 color = scatter * vec3(0.3, 0.5, 1.0);
-
-            // blend between day side (blue scatter) and night side (faint glow)
-            vec3 dayColor = color * phase * 2.0;
-            vec3 nightColor = vec3(0.02, 0.04, 0.12);
-            vec3 finalColor = mix(nightColor, dayColor, sunFactor);
-
-            float alpha = fresnel * (0.4 + sunFactor * 0.6);
-            alpha = clamp(alpha, 0.0, 0.85);
-
-            gl_FragColor = vec4(finalColor, alpha);
-        }
-    </script>
-
-    <!-- volumetric ring vertex -->
-    <script id="ring-vert" type="x-shader/x-vertex">
-        varying vec3 vWorldPosition;
-        varying vec3 vWorldNormal;
-
-        void main() {
-            vec4 worldPos = modelMatrix * vec4(position, 1.0);
-            vWorldPosition = worldPos.xyz;
-            vWorldNormal = normalize(mat3(modelMatrix) * normal);
-            gl_Position = projectionMatrix * viewMatrix * worldPos;
-        }
-    </script>
-
-    <!-- volumetric ring fragment - edge glow similar to volumetric fog -->
-    <script id="ring-frag" type="x-shader/x-fragment">
-        uniform vec3 uSunDirection;
-        uniform vec3 uCameraPos;
-
-        varying vec3 vWorldPosition;
-        varying vec3 vWorldNormal;
-
-        void main() {
-            vec3 viewDir = normalize(vWorldPosition - uCameraPos);
-            vec3 normal = normalize(vWorldNormal);
-
-            // edge detection via fresnel
-            float edgeFactor = 1.0 - abs(dot(viewDir, normal));
-
-            // sharp edge glow - similar to volumetric light scattering
-            float glow = pow(edgeFactor, 6.0);
-
-            // sun influence on the ring
-            float sunInfluence = max(dot(normal, uSunDirection), 0.0);
-            sunInfluence = pow(sunInfluence, 0.5);
-
-            // forward scattering - brighter when looking toward the sun
-            float cosAngle = dot(viewDir, uSunDirection);
-            float forwardScatter = pow(max(cosAngle, 0.0), 8.0) * 0.5;
-
-            vec3 ringColor = vec3(0.4, 0.65, 1.0) * (sunInfluence + 0.15) + forwardScatter;
-            float alpha = glow * 0.6;
-
-            gl_FragColor = vec4(ringColor, alpha);
-        }
-    </script>
-
-    <!-- cloud layer vertex -->
-    <script id="cloud-vert" type="x-shader/x-vertex">
-        uniform float uTime;
-
-        varying vec2 vUv;
-        varying vec3 vWorldNormal;
-        varying vec3 vWorldPosition;
-
-        void main() {
-            vUv = uv;
-
-            // subtle vertex displacement for cloud movement
-            vec3 displaced = position;
-            float displacement = sin(position.x * 8.0 + uTime * 0.3) *
-                                 cos(position.z * 6.0 + uTime * 0.2) * 0.002;
-            displaced += normal * displacement;
-
-            vec4 worldPos = modelMatrix * vec4(displaced, 1.0);
-            vWorldPosition = worldPos.xyz;
-            vWorldNormal = normalize(mat3(modelMatrix) * normal);
-
-            gl_Position = projectionMatrix * viewMatrix * worldPos;
-        }
-    </script>
-
-    <!-- cloud layer fragment -->
-    <script id="cloud-frag" type="x-shader/x-fragment">
-        uniform sampler2D uCloudTexture;
-        uniform float uTime;
-        uniform vec3 uSunDirection;
-
-        varying vec2 vUv;
-        varying vec3 vWorldNormal;
-        varying vec3 vWorldPosition;
-
-        void main() {
-            // scroll the UV over time to animate clouds
-            vec2 scrollUv = vUv;
-            scrollUv.x += uTime * 0.003;
-
-            vec4 cloudSample = texture2D(uCloudTexture, scrollUv);
-            float cloudAlpha = cloudSample.r;
-
-            // sample at a second offset for more depth
-            vec2 scrollUv2 = vUv;
-            scrollUv2.x += uTime * 0.002 + 0.3;
-            scrollUv2.y += uTime * 0.001;
-            float cloud2 = texture2D(uCloudTexture, scrollUv2).r;
-
-            cloudAlpha = max(cloudAlpha, cloud2 * 0.5);
-
-            // sun-side lighting on clouds
-            float sunLight = dot(normalize(vWorldNormal), uSunDirection);
-            sunLight = smoothstep(-0.1, 0.8, sunLight);
-
-            vec3 litColor = vec3(1.0, 1.0, 1.0);
-            vec3 shadowColor = vec3(0.15, 0.18, 0.3);
-            vec3 cloudColor = mix(shadowColor, litColor, sunLight);
-
-            float finalAlpha = cloudAlpha * 0.45 * (0.3 + sunLight * 0.7);
-
-            gl_FragColor = vec4(cloudColor, finalAlpha);
-        }
-    </script>
-
-    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
     <script src="https://unpkg.com/globe.gl@2.33.0/dist/globe.gl.min.js"></script>
     <script>
-        // globe setup
-        var globe = Globe()
+        const globe = Globe()
             .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
             .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
             .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
-            .showAtmosphere(false) // we handle atmosphere ourselves
-            .showGraticules(true)
-            .pointOfView({ lat: 20, lng: 0, altitude: 2.2 })
-
+            .showAtmosphere(true)
+            .atmosphereColor('#3a7bd5')
+            .atmosphereAltitude(0.2)
+            .pointOfView({ lat: 20, lng: 0, altitude: 2.5 })
             .pointsData([])
             .pointLat('lat')
             .pointLng('lng')
-            .pointColor(function() { return '#ff4444'; })
-            .pointAltitude(0.06)
-            .pointRadius(0.4)
-
-            .htmlElementsData([])
-            .htmlLat('lat')
-            .htmlLng('lng')
-            .htmlAltitude(0.08)
-            .htmlElement(function() {
-                var el = document.createElement('div');
-                el.className = 'iss-label';
-                el.innerHTML = '<span class="dot"></span>ISS';
-                return el;
-            })
-
+            .pointColor(() => '#ff3333')
+            .pointAltitude(0.05)
+            .pointRadius(0.5)
             .pathsData([])
             .pathPoints('coords')
-            .pathPointLat(function(p) { return p[0]; })
-            .pathPointLng(function(p) { return p[1]; })
-            .pathColor(function() { return ['rgba(100, 200, 255, 0.8)', 'rgba(100, 200, 255, 0.1)']; })
-            .pathStroke(2.5)
-            .pathDashLength(0.03)
-            .pathDashGap(0.005)
-            .pathDashAnimateTime(80000)
-
+            .pathPointLat(p => p[0])
+            .pathPointLng(p => p[1])
+            .pathColor(() => ['rgba(100, 180, 255, 0.6)', 'rgba(100, 180, 255, 0.05)'])
+            .pathStroke(1.5)
+            .pathDashLength(0.05)
+            .pathDashGap(0.01)
+            .pathDashAnimateTime(100000)
             .ringsData([])
             .ringLat('lat')
             .ringLng('lng')
-            .ringColor(function() { return function(t) { return 'rgba(255, 80, 80, ' + (1 - t) + ')'; }; })
-            .ringMaxRadius(3)
+            .ringColor(() => t => `rgba(255, 50, 50, ${1 - t})`)
+            .ringMaxRadius(2.5)
             .ringPropagationSpeed(2)
-            .ringRepeatPeriod(1200)
-
+            .ringRepeatPeriod(1500)
             (document.getElementById('globe-container'));
 
-        // sizing
-        function handleResize() {
+        globe.width(window.innerWidth);
+        globe.height(window.innerHeight);
+        window.addEventListener('resize', () => {
             globe.width(window.innerWidth);
             globe.height(window.innerHeight);
-        }
-        window.addEventListener('resize', handleResize);
-        handleResize();
+        });
 
         globe.controls().autoRotate = true;
-        globe.controls().autoRotateSpeed = 0.2;
+        globe.controls().autoRotateSpeed = 0.3;
 
-        // get scene ref
-        var scene = globe.scene();
-        var globeObj = scene.children[0]; // the globe group
-        var globeRadius = 100;
+        async function loadPosition() {
+            try {
+                const res = await fetch('/api/position');
+                if (!res.ok) return;
+                const data = await res.json();
 
-        // sun direction - normalized light vector
-        var sunDirection = new THREE.Vector3(1.0, 0.3, 0.5).normalize();
+                const lat = parseFloat(data.latitude);
+                const lng = parseFloat(data.longitude);
 
-        // rayleigh scattering atmosphere shell
-        var atmosGeo = new THREE.SphereGeometry(globeRadius * 1.12, 64, 64);
-        var atmosMat = new THREE.ShaderMaterial({
-            vertexShader: document.getElementById('atmos-vert').textContent,
-            fragmentShader: document.getElementById('atmos-frag').textContent,
-            uniforms: {
-                uSunDirection: { value: sunDirection },
-                uCameraPos: { value: new THREE.Vector3() }
-            },
-            blending: THREE.AdditiveBlending,
-            side: THREE.BackSide,
-            transparent: true,
-            depthWrite: false
-        });
-        var atmosMesh = new THREE.Mesh(atmosGeo, atmosMat);
-        scene.add(atmosMesh);
+                document.getElementById('lat').textContent = lat.toFixed(4) + '°';
+                document.getElementById('lng').textContent = lng.toFixed(4) + '°';
+                document.getElementById('updated').textContent = new Date(data.timestamp).toLocaleTimeString();
 
-        // volumetric edge glow ring
-        var ringGeo = new THREE.SphereGeometry(globeRadius * 1.18, 64, 64);
-        var ringMat = new THREE.ShaderMaterial({
-            vertexShader: document.getElementById('ring-vert').textContent,
-            fragmentShader: document.getElementById('ring-frag').textContent,
-            uniforms: {
-                uSunDirection: { value: sunDirection },
-                uCameraPos: { value: new THREE.Vector3() }
-            },
-            blending: THREE.AdditiveBlending,
-            side: THREE.BackSide,
-            transparent: true,
-            depthWrite: false
-        });
-        var ringMesh = new THREE.Mesh(ringGeo, ringMat);
-        scene.add(ringMesh);
-
-        // animated cloud layer
-        var cloudTexture = new THREE.TextureLoader().load(
-            'https://unpkg.com/three-globe/example/img/earth-water.png',
-            function(tex) {
-                tex.wrapS = THREE.RepeatWrapping;
-                tex.wrapT = THREE.RepeatWrapping;
-            }
-        );
-
-        var cloudGeo = new THREE.SphereGeometry(globeRadius * 1.01, 64, 64);
-        var cloudMat = new THREE.ShaderMaterial({
-            vertexShader: document.getElementById('cloud-vert').textContent,
-            fragmentShader: document.getElementById('cloud-frag').textContent,
-            uniforms: {
-                uCloudTexture: { value: cloudTexture },
-                uTime: { value: 0.0 },
-                uSunDirection: { value: sunDirection }
-            },
-            transparent: true,
-            depthWrite: false,
-            side: THREE.FrontSide
-        });
-        var cloudMesh = new THREE.Mesh(cloudGeo, cloudMat);
-        scene.add(cloudMesh);
-
-        // animation loop - update uniforms each frame
-        var clock = new THREE.Clock();
-
-        function animate() {
-            requestAnimationFrame(animate);
-
-            var elapsed = clock.getElapsedTime();
-
-            // update time uniform for cloud animation
-            cloudMat.uniforms.uTime.value = elapsed;
-
-            // slowly rotate sun direction for dynamic lighting
-            var sunAngle = elapsed * 0.05;
-            sunDirection.set(
-                Math.cos(sunAngle),
-                0.3,
-                Math.sin(sunAngle)
-            ).normalize();
-
-            // update camera position for fresnel calculations
-            var cam = globe.camera();
-            if (cam) {
-                atmosMat.uniforms.uCameraPos.value.copy(cam.position);
-                ringMat.uniforms.uCameraPos.value.copy(cam.position);
+                globe.pointsData([{ lat, lng }]);
+                globe.ringsData([{ lat, lng }]);
+                globe.pointOfView({ lat, lng, altitude: 2.5 }, 2000);
+            } catch (e) {
+                console.error('Failed to load position:', e);
             }
         }
-        animate();
 
-        // data loading
-        function loadPosition() {
-            fetch('/api/position')
-                .then(function(res) {
-                    if (!res.ok) throw new Error('bad response');
-                    return res.json();
-                })
-                .then(function(data) {
-                    var lat = parseFloat(data.latitude);
-                    var lng = parseFloat(data.longitude);
-
-                    document.getElementById('lat').textContent = lat.toFixed(4) + '\u00B0';
-                    document.getElementById('lng').textContent = lng.toFixed(4) + '\u00B0';
-                    document.getElementById('updated').textContent = new Date(data.timestamp).toLocaleTimeString();
-
-                    globe.pointsData([{ lat: lat, lng: lng }]);
-                    globe.htmlElementsData([{ lat: lat, lng: lng }]);
-                    globe.ringsData([{ lat: lat, lng: lng }]);
-                    globe.pointOfView({ lat: lat, lng: lng, altitude: 2.2 }, 2000);
-                })
-                .catch(function(err) {
-                    console.error('Failed to load position:', err);
-                });
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/history');
+                if (!res.ok) return;
+                const history = await res.json();
+                document.getElementById('datapoints').textContent = history.length;
+                if (history.length > 1) {
+                    const coords = history.map(p => [p.latitude, p.longitude]);
+                    globe.pathsData([{ coords }]);
+                }
+            } catch (e) {
+                console.error('Failed to load history:', e);
+            }
         }
 
-        function loadHistory() {
-            fetch('/api/history')
-                .then(function(res) {
-                    if (!res.ok) throw new Error('bad response');
-                    return res.json();
-                })
-                .then(function(history) {
-                    document.getElementById('datapoints').textContent = history.length;
-                    if (history.length > 1) {
-                        var coords = history.map(function(p) { return [p.latitude, p.longitude]; });
-                        globe.pathsData([{ coords: coords }]);
-                    }
-                })
-                .catch(function(err) {
-                    console.error('Failed to load history:', err);
-                });
-        }
-
-        // countdown to next data refresh
-        var secondsLeft = 300;
-        setInterval(function() {
-            var min = Math.floor(secondsLeft / 60);
-            var sec = String(secondsLeft % 60).padStart(2, '0');
+        let secondsLeft = 300;
+        setInterval(() => {
+            const min = Math.floor(secondsLeft / 60);
+            const sec = String(secondsLeft % 60).padStart(2, '0');
             document.getElementById('countdown').textContent = min + ':' + sec;
             if (secondsLeft <= 0) {
                 secondsLeft = 300;
